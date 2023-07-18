@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="osm-read-pbf.js"></script>
+    <script src="osm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="mappa.js"></script>
+    <script src="cpu.js"></script>
+    <script src="gpu.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      let ready = false;
+      let myMap;
+      let canvas;
+      const mode = 'cpu';
+      let cars = [
+        {
+          id: 1,
+          lat: 42.65,
+          lon: 21.1791,
+          speed: 5,
+        },
+      ];
+      let x = 11.396396;
+      let y = 5.076543;
+      const mappa = new Mappa('Leaflet');
+      const options = {
+        lat: 42.65,
+        lng: 21.1791,
+        zoom: 16,
+        style: 'http://{s}.tile.osm.org/{z}/{x}/{y}.png',
+      };
+
+      function setup() {
+        canvas = createCanvas(1000, 1000);
+        myMap = mappa.tileMap(options);
+        myMap.overlay(canvas);
+
+        fill(0, 0, 0);
+      }
+
+      let step = 0;
+      const interval = setInterval(() => {
+        if (mode == 'cpu') {
+          computePassCpu().then((result) => {
+            // console.log(result);
+            // x = result[0];
+            // y = result[1];
+          });
+        } else {
+          computePassGpu(x, y).then((result) => {
+            console.log(result);
+            x = result[0];
+            y = result[1];
+          });
+        }
+
+        step++;
+      }, 1000);
+
+      function draw() {
+        if (!ready) {
+          return;
+        }
+
+        clear();
+
+        ways.forEach((way) => {
+          for (let i = 0; i < way.nodes.length - 1; i++) {
+            const node1 = way.nodes[i];
+            const node2 = way.nodes[i + 1];
+
+            const node1PixelCoords = myMap.latLngToPixel(node1.lat, node1.lon);
+            const node2PixelCoords = myMap.latLngToPixel(node2.lat, node2.lon);
+
+            line(node1PixelCoords.x, node1PixelCoords.y, node2PixelCoords.x, node2PixelCoords.y);
+          }
+        });
+
+        drawCars();
+      }
+
+      function drawCars() {
+        cars.forEach((car) => {
+          drawCar(car.lat, car.lon);
+        });
+      }
+
+      function drawCar(lat, lon) {
+        const carPixelCoords = myMap.latLngToPixel(lat, lon);
+        rect(carPixelCoords.x, carPixelCoords.y, 12, 8);
+      }
+    </script>
+  </body>
+</html>
