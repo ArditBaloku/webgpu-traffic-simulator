@@ -29,12 +29,24 @@ pbfParser.parse({
 });
 
 function filterRoads() {
+  const allowedHighways = ['tertiary', 'secondary', 'primary'];
   ways = ways
-    .filter((x) => x.tags.highway && x.tags.highway === 'tertiary')
+    .filter((x) => x.tags.highway && allowedHighways.includes(x.tags.highway))
     .map((x) => ({
       ...x,
       nodes: x.nodeRefs.map((y) => ({ ...nodes.find((z) => z.id === y), wayId: x.id })),
+      connections: [],
     }));
+
+  ways.forEach((way) => {
+    const lastNode = way.nodes[way.nodes.length - 1];
+    const lastWay = ways.find((x) => x.id !== way.id && x.nodes[0].id === lastNode.id);
+    if (lastWay) {
+      way.connections.push(lastWay);
+    }
+  });
+
+  console.log(ways.map((x) => x.connections));
 
   const randomNodes = ways.flatMap((x) => x.nodes).filter((x) => Math.random() < 0.2);
   let id = 1;
@@ -45,6 +57,4 @@ function filterRoads() {
     wayId: y.wayId,
     nodeId: y.id,
   }));
-
-  console.log(cars);
 }
