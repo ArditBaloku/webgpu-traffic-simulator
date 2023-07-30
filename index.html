@@ -87,20 +87,23 @@
         fill(0, 0, 0);
 
         cars.forEach((car) => {
-          drawCar(car.lat, car.lon, car.speed);
+          drawCar(car);
         });
       }
 
-      function drawCar(lat, lon, speed) {
-        if (speed == 0) {
+      function drawCar(car) {
+        if (car.speed == 0) {
           fill(0, 0, 0);
-        } else if (speed == 1) {
+        } else if (car.speed == 1) {
           fill(255, 255, 0);
-        } else if (speed == 2) {
+        } else if (car.speed == 2) {
           fill(0, 255, 0);
         }
-        const carPixelCoords = myMap.latLngToPixel(lat, lon);
+        const carPixelCoords = myMap.latLngToPixel(car.lat, car.lon);
         rect(carPixelCoords.x, carPixelCoords.y, 12, 8);
+
+        fill(255, 0, 0);
+        text(car.id, carPixelCoords.x + 2, carPixelCoords.y + 2);
       }
 
       function drawCells() {
