@@ -6,22 +6,49 @@ async function computePassCpu() {
       const index = way.nodes.indexOf(node);
 
       let currentWay = way;
+      let previousWay = way;
       let positionInWay = index;
       let previousNode = node;
       let nextNode = previousNode;
       let canSpeedUp = false;
       for (let distanceToCheck = 0; distanceToCheck < Math.max(car.speed, 1); distanceToCheck++) {
         if (positionInWay + 1 > currentWay.nodes.length - 1) {
+          previousWay = currentWay;
           currentWay = currentWay.connections[0];
           positionInWay = 0;
 
           if (!currentWay) {
             return null;
           }
+
+          const enteringRoundabout = currentWay.tags.junction && !previousWay.tags.junction;
+          if (enteringRoundabout) {
+            const previousSectionOfRoundabout = ways.find(
+              (x) => x.tags.junction && x.connections.some((y) => y.id === currentWay.id)
+            );
+
+            // check if any car is inside currentWay
+            const isCarInRoundabout = cars.find(
+              (x) => x.wayId === currentWay.id || x.wayId === previousSectionOfRoundabout.id
+            );
+
+            if (isCarInRoundabout) {
+              return {
+                id: car.id,
+                lat: previousNode.lat,
+                lon: previousNode.lon,
+                wayId: previousNode.wayId,
+                nodeId: previousNode.id,
+                speed: 0,
+              };
+            }
+          }
         }
 
         nextNode = currentWay.nodes[positionInWay + 1];
-        const isCarOnNextNode = cars.find((x) => x.nodeId === nextNode.id);
+        const isCarOnNextNode = cars.find(
+          (x) => x.nodeId === nextNode.id && x.wayId === currentWay.id
+        );
 
         if (isCarOnNextNode) {
           return {
