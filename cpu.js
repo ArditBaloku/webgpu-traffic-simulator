@@ -4,27 +4,44 @@ async function computePassCpu() {
       const way = ways.find((x) => x.id === car.wayId);
       const node = way.nodes.find((x) => x.id === car.nodeId);
       const index = way.nodes.indexOf(node);
-      if (index > way.nodes.length - 2) {
-        const connections = way.connections;
-        if (connections.length === 0) {
-          return null;
+
+      let currentWay = way;
+      let positionInWay = index;
+      let previousNode = node;
+      let nextNode = previousNode;
+      for (let distanceToCheck = 0; distanceToCheck < Math.max(car.speed, 1); distanceToCheck++) {
+        if (positionInWay + 1 > currentWay.nodes.length - 1) {
+          currentWay = currentWay.connections[0];
+          positionInWay = 0;
+
+          if (!currentWay) {
+            return null;
+          }
         }
 
-        const nextNode = connections[0].nodes[1];
-        return {
-          lat: nextNode.lat,
-          lon: nextNode.lon,
-          wayId: nextNode.wayId,
-          nodeId: nextNode.id,
-        };
+        nextNode = currentWay.nodes[positionInWay + 1];
+        const isCarOnNextNode = cars.find((x) => x.nodeId === nextNode.id);
+
+        if (isCarOnNextNode) {
+          return {
+            lat: previousNode.lat,
+            lon: previousNode.lon,
+            wayId: previousNode.wayId,
+            nodeId: previousNode.id,
+            speed: distanceToCheck,
+          };
+        }
+
+        previousNode = nextNode;
+        positionInWay++;
       }
 
-      const nextNode = way.nodes[index + 1];
       return {
         lat: nextNode.lat,
         lon: nextNode.lon,
         wayId: nextNode.wayId,
         nodeId: nextNode.id,
+        speed: Math.max(car.speed, 1),
       };
     })
     .filter(Boolean);

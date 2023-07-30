@@ -39,8 +39,6 @@
         canvas = createCanvas(1000, 1000);
         myMap = mappa.tileMap(options);
         myMap.overlay(canvas);
-
-        fill(0, 0, 0);
       }
 
       let step = 0;
@@ -81,18 +79,39 @@
           }
         });
 
+        drawCells();
         drawCars();
       }
 
       function drawCars() {
+        fill(0, 0, 0);
+
         cars.forEach((car) => {
-          drawCar(car.lat, car.lon);
+          drawCar(car.lat, car.lon, car.speed);
         });
       }
 
-      function drawCar(lat, lon) {
+      function drawCar(lat, lon, speed) {
+        if (speed == 0) {
+          fill(0, 0, 0);
+        } else if (speed == 1) {
+          fill(255, 255, 0);
+        } else if (speed == 2) {
+          fill(0, 255, 0);
+        }
         const carPixelCoords = myMap.latLngToPixel(lat, lon);
         rect(carPixelCoords.x, carPixelCoords.y, 12, 8);
+      }
+
+      function drawCells() {
+        fill(255, 255, 255);
+
+        ways.forEach((way) => {
+          way.nodes.forEach((node) => {
+            const nodePixelCoords = myMap.latLngToPixel(node.lat, node.lon);
+            rect(nodePixelCoords.x, nodePixelCoords.y, 4, 4);
+          });
+        });
       }
     </script>
   </body>

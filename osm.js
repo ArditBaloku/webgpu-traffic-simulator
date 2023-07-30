@@ -46,8 +46,6 @@ function filterRoads() {
     }
   });
 
-  console.log(ways.map((x) => x.connections));
-
   const randomNodes = ways.flatMap((x) => x.nodes).filter((x) => Math.random() < 0.2);
   let id = 1;
   cars = randomNodes.map((y) => ({
@@ -56,5 +54,6 @@ function filterRoads() {
     lon: y.lon,
     wayId: y.wayId,
     nodeId: y.id,
+    speed: 2,
   }));
 }
