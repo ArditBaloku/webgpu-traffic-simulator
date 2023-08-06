@@ -44,17 +44,9 @@
       let step = 0;
       const interval = setInterval(() => {
         if (mode == 'cpu') {
-          computePassCpu().then((result) => {
-            // console.log(result);
-            // x = result[0];
-            // y = result[1];
-          });
+          computePassCpu();
         } else {
-          computePassGpu(x, y).then((result) => {
-            console.log(result);
-            x = result[0];
-            y = result[1];
-          });
+          computePassGpu();
         }
 
         step++;

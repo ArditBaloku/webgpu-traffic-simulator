@@ -1,4 +1,10 @@
+device = null;
+
 async function getDevice() {
+  if (device) {
+    return device;
+  }
+
   if (!('gpu' in navigator)) {
     console.log('WebGPU is not supported. Enable chrome://flags/#enable-unsafe-webgpu flag.');
     return;
@@ -10,74 +16,186 @@ async function getDevice() {
     return;
   }
 
-  return adapter.requestDevice();
+  device = await adapter.requestDevice();
+  return device;
 }
 
-async function computePassGpu(initialX, initialY) {
-  const device = await getDevice();
-
-  const resultBufferSize = Float32Array.BYTES_PER_ELEMENT * 2;
-  const resultBuffer = device.createBuffer({
-    size: resultBufferSize,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+function createGPUBuffer(typedArray, usage) {
+  let gpuBuffer = device.createBuffer({
+    size: typedArray.byteLength,
+    usage: usage,
     mappedAtCreation: true,
   });
-  new Float32Array(resultBuffer.getMappedRange()).set([initialX, initialY]);
-  resultBuffer.unmap();
 
-  // Bind group layout and bind group
+  let constructor = typedArray.constructor;
+  let view = new constructor(gpuBuffer.getMappedRange());
+  view.set(typedArray, 0);
+  gpuBuffer.unmap();
 
-  const bindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: {
-          type: 'storage',
-        },
-      },
-    ],
-  });
+  return gpuBuffer;
+}
 
-  const bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: resultBuffer,
-        },
-      },
-    ],
-  });
+function buildGpuWaysArray() {
+  let connectionsOffset = 0;
+  let nodesOffset = 0;
+  const gpuWays = [];
 
-  // Compute shader code
+  for (const way of ways) {
+    const gpuWay = {
+      id: Number(way.id),
+      connectionsOffset: connectionsOffset,
+      connectionsLength: way.connections.length,
+      nodesOffset: nodesOffset,
+      nodesLength: way.nodes.length,
+      isRoundabout: way.tags.junction && way.tags.junction === 'roundabout' ? true : false,
+    };
 
-  const shaderModule = device.createShaderModule({
-    code: `struct Coordinate {
-      x: f32,
-      y: f32,
+    gpuWays.push(gpuWay);
+    connectionsOffset += way.connections.length;
+    nodesOffset += way.nodes.length;
+  }
+
+  const arr = gpuWays.flatMap((way) => [
+    way.id,
+    way.connectionsOffset,
+    way.connectionsLength,
+    way.nodesOffset,
+    way.nodesLength,
+    way.isRoundabout,
+  ]);
+  return new Uint32Array(arr);
+}
+
+function buildGpuNodesArray() {
+  const flatNode = ways.flatMap((x) => x.nodes);
+  const nodeIdsArray = new Uint32Array(flatNode.flatMap((x) => [Number(x.id), Number(x.wayId)]));
+  const nodeCoordsArray = new Float32Array(flatNode.flatMap((x) => [x.lat, x.lon]));
+  return [nodeIdsArray, nodeCoordsArray];
+}
+
+waysBuffer = null;
+nodeIdsBuffer = null;
+nodeCoordsBuffer = null;
+staticBuffersInitialized = false;
+function initStaticBuffers() {
+  if (staticBuffersInitialized) {
+    return;
+  }
+
+  const gpuWaysArray = buildGpuWaysArray();
+  waysBuffer = createGPUBuffer(
+    gpuWaysArray,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
+  );
+
+  const [gpuNodeIdsArray, gpuNodeCoordsArray] = buildGpuNodesArray();
+  nodeIdsBuffer = createGPUBuffer(
+    gpuNodeIdsArray,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
+  );
+  nodeCoordsBuffer = createGPUBuffer(
+    gpuNodeCoordsArray,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
+  );
+
+  staticBuffersInitialized = true;
+}
+
+shaderModule = null;
+shaderModuleCreated = false;
+function createShaderModule() {
+  if (shaderModuleCreated) {
+    return;
+  }
+
+  shaderModule = device.createShaderModule({
+    code: `
+    struct Way {
+      id: u32,
+      connectionsOffset: u32,
+      connectionsLength: u32,
+      nodesOffset: u32,
+      nodesLength: u32,
+      isRoundabout: u32,
     }
     
-    @group(0) @binding(0) var<storage, read_write> resultCoordinate : Coordinate;
+    struct Ways {
+      ways: array<Way>,
+    }
+
+    struct NodeId {
+      id: u32,
+      wayId: u32,
+    }
+
+    struct NodeCoordinate {
+      lat: f32,
+      lon: f32,
+    }
+
+    struct NodeIds {
+      nodeIds: array<NodeId>,
+    }
+
+    struct NodeCoordinates {
+      nodeCoordinates: array<NodeCoordinate>,
+    }
     
-    @compute @workgroup_size(1, 1)
+    @group(0) @binding(0) var<storage, read> ways : Ways;
+    @group(0) @binding(1) var<storage, read> nodeIds : NodeIds;
+    @group(0) @binding(2) var<storage, read> nodeCoordinates : NodeCoordinates;
+    
+    @compute @workgroup_size(8)
     fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
-      resultCoordinate.x = resultCoordinate.x + 0.0001;
-      resultCoordinate.y = resultCoordinate.y + 0.0001;
+      var index = global_id.x;
+      // use these just to autodetect layout
+      var way = ways.ways[index];
+      var nodesOffset = way.nodesOffset;
+      var nodeIds = nodeIds.nodeIds[nodesOffset];
+      var nodeCoordinates = nodeCoordinates.nodeCoordinates[nodesOffset];
     }`,
   });
 
+  shaderModuleCreated = true;
+}
+
+async function computePassGpu() {
+  const device = await getDevice();
+  initStaticBuffers();
+
   // Pipeline setup
 
+  createShaderModule();
   const computePipeline = device.createComputePipeline({
-    layout: device.createPipelineLayout({
-      bindGroupLayouts: [bindGroupLayout],
-    }),
+    layout: 'auto',
     compute: {
       module: shaderModule,
       entryPoint: 'main',
     },
+  });
+
+  const bindGroup = device.createBindGroup({
+    layout: computePipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: waysBuffer,
+        },
+      },
+      {
+        binding: 1,
+        resource: {
+          buffer: nodeIdsBuffer,
+        },
+      },
+      {
+        binding: 2,
+        resource: {
+          buffer: nodeCoordsBuffer,
+        },
+      },
+    ],
   });
 
   // Commands submission
@@ -87,30 +205,10 @@ async function computePassGpu(initialX, initialY) {
   const passEncoder = commandEncoder.beginComputePass();
   passEncoder.setPipeline(computePipeline);
   passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.dispatchWorkgroups(1, 1);
+  passEncoder.dispatchWorkgroups(8);
   passEncoder.end();
-
-  // Get a GPU buffer for reading in an unmapped state.
-  const gpuReadBuffer = device.createBuffer({
-    size: resultBufferSize,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
-
-  // Encode commands for copying buffer to buffer.
-  commandEncoder.copyBufferToBuffer(
-    resultBuffer /* source buffer */,
-    0 /* source offset */,
-    gpuReadBuffer /* destination buffer */,
-    0 /* destination offset */,
-    resultBufferSize /* size */
-  );
 
   // Submit GPU commands.
   const gpuCommands = commandEncoder.finish();
   device.queue.submit([gpuCommands]);
-
-  // Read buffer.
-  await gpuReadBuffer.mapAsync(GPUMapMode.READ);
-  const arrayBuffer = gpuReadBuffer.getMappedRange();
-  return new Float32Array(arrayBuffer);
 }
