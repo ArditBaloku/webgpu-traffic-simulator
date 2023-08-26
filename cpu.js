@@ -1,5 +1,5 @@
 async function computePassCpu() {
-  cars = cars
+  cpuCars = cpuCars
     .map((car) => {
       const way = ways.find((x) => x.id === car.wayId);
       const node = way.nodes.find((x) => x.id === car.nodeId);
@@ -28,7 +28,7 @@ async function computePassCpu() {
             );
 
             // check if any car is inside currentWay
-            const isCarInRoundabout = cars.find(
+            const isCarInRoundabout = cpuCars.find(
               (x) => x.wayId === currentWay.id || x.wayId === previousSectionOfRoundabout.id
             );
 
@@ -46,7 +46,7 @@ async function computePassCpu() {
         }
 
         nextNode = currentWay.nodes[positionInWay + 1];
-        const isCarOnNextNode = cars.find(
+        const isCarOnNextNode = cpuCars.find(
           (x) => x.nodeId === nextNode.id && x.wayId === currentWay.id
         );
 
@@ -78,7 +78,7 @@ async function computePassCpu() {
           }
 
           nextNode = currentWay.nodes[positionInWay + 1];
-          const isCarOnNextNode = cars.find((x) => x.nodeId === nextNode.id);
+          const isCarOnNextNode = cpuCars.find((x) => x.nodeId === nextNode.id);
 
           if (!isCarOnNextNode) {
             canSpeedUp = true;

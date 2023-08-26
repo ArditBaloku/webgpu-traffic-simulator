@@ -12,21 +12,16 @@
     <title>Document</title>
   </head>
   <body>
+    <div style="display: flex; justify-content: start">
+      <div id="left"></div>
+      <!-- make a straight line to divide these two divs vertically -->
+      <div style="border-left: 5px solid black; height: 700px"></div>
+      <div id="right"></div>
+    </div>
     <script>
       let ready = false;
-      let myMap;
-      let canvas;
-      const mode = 'gpu';
-      let cars = [
-        {
-          id: 1,
-          lat: 42.65,
-          lon: 21.1791,
-          speed: 5,
-        },
-      ];
-      let x = 11.396396;
-      let y = 5.076543;
+      let cpuCars = [];
+      let gpuCars = [];
       const mappa = new Mappa('Leaflet');
       const options = {
         lat: 42.65221,
@@ -35,79 +30,119 @@
         style: 'http://{s}.tile.osm.org/{z}/{x}/{y}.png',
       };
 
-      function setup() {
-        canvas = createCanvas(1000, 1000);
-        myMap = mappa.tileMap(options);
-        myMap.overlay(canvas);
-      }
+      const s = (sketch) => {
+        let myMap;
+
+        sketch.setup = () => {
+          const canvas = sketch.createCanvas(700, 700);
+          myMap = mappa.tileMap(options);
+          myMap.overlay(canvas);
+        };
+
+        sketch.draw = () => {
+          if (!ready) {
+            return;
+          }
+
+          sketch.clear();
+
+          drawWays(sketch);
+          drawCells(sketch);
+          drawCars(sketch);
+          drawStatistics(sketch);
+        };
+
+        function drawWays(sketch) {
+          ways.forEach((way) => {
+            for (let i = 0; i < way.nodes.length - 1; i++) {
+              const node1 = way.nodes[i];
+              const node2 = way.nodes[i + 1];
+
+              const node1PixelCoords = myMap.latLngToPixel(node1.lat, node1.lon);
+              const node2PixelCoords = myMap.latLngToPixel(node2.lat, node2.lon);
+
+              sketch.line(
+                node1PixelCoords.x,
+                node1PixelCoords.y,
+                node2PixelCoords.x,
+                node2PixelCoords.y
+              );
+            }
+          });
+        }
+
+        function drawCells(sketch) {
+          sketch.fill(255, 255, 255);
+
+          ways.forEach((way) => {
+            way.nodes.forEach((node) => {
+              const nodePixelCoords = myMap.latLngToPixel(node.lat, node.lon);
+              sketch.rect(nodePixelCoords.x, nodePixelCoords.y, 4, 4);
+            });
+          });
+        }
+
+        function drawCars(sketch) {
+          if (!sketch.cars) {
+            return;
+          }
+
+          sketch.fill(0, 0, 0);
+
+          sketch.cars.forEach((car) => {
+            drawCar(car, sketch);
+          });
+        }
+
+        function drawCar(car, sketch) {
+          if (car.speed == 0) {
+            sketch.fill(0, 0, 0);
+          } else if (car.speed == 1) {
+            sketch.fill(255, 255, 0);
+          } else if (car.speed == 2) {
+            sketch.fill(0, 255, 0);
+          }
+          const carPixelCoords = myMap.latLngToPixel(car.lat, car.lon);
+          sketch.rect(carPixelCoords.x, carPixelCoords.y, 12, 8);
+
+          sketch.fill(255, 0, 0);
+          sketch.textSize(12);
+          sketch.text(car.id, carPixelCoords.x + 2, carPixelCoords.y + 2);
+        }
+
+        function drawStatistics(sketch) {
+          sketch.textSize(24);
+          sketch.fill(0, 0, 0);
+          sketch.text(`Step: ${step}`, 50, 40);
+
+          const areSimulationsSynced = JSON.stringify(cpuCars) === JSON.stringify(gpuCars);
+
+          sketch.textSize(24);
+          sketch.text('Sync status: ', 50, 80);
+
+          if (areSimulationsSynced) {
+            sketch.fill(0, 255, 0);
+          } else {
+            sketch.fill(255, 0, 0);
+          }
+
+          sketch.text(areSimulationsSynced ? 'Synced' : 'Not synced', 180, 80);
+        }
+      };
+
+      let leftP5 = new p5(s, 'left');
+      let rightP5 = new p5(s, 'right');
 
       let step = 0;
       const interval = setInterval(() => {
-        if (mode == 'cpu') {
-          computePassCpu();
-        } else {
-          computePassGpu();
-        }
+        leftP5.cars = cpuCars;
+        rightP5.cars = gpuCars;
+
+        computePassCpu();
+        computePassGpu();
 
         step++;
       }, 1000);
-
-      function draw() {
-        if (!ready) {
-          return;
-        }
-
-        clear();
-
-        ways.forEach((way) => {
-          for (let i = 0; i < way.nodes.length - 1; i++) {
-            const node1 = way.nodes[i];
-            const node2 = way.nodes[i + 1];
-
-            const node1PixelCoords = myMap.latLngToPixel(node1.lat, node1.lon);
-            const node2PixelCoords = myMap.latLngToPixel(node2.lat, node2.lon);
-
-            line(node1PixelCoords.x, node1PixelCoords.y, node2PixelCoords.x, node2PixelCoords.y);
-          }
-        });
-
-        drawCells();
-        drawCars();
-      }
-
-      function drawCars() {
-        fill(0, 0, 0);
-
-        cars.forEach((car) => {
-          drawCar(car);
-        });
-      }
-
-      function drawCar(car) {
-        if (car.speed == 0) {
-          fill(0, 0, 0);
-        } else if (car.speed == 1) {
-          fill(255, 255, 0);
-        } else if (car.speed == 2) {
-          fill(0, 255, 0);
-        }
-        const carPixelCoords = myMap.latLngToPixel(car.lat, car.lon);
-        rect(carPixelCoords.x, carPixelCoords.y, 12, 8);
-
-        fill(255, 0, 0);
-        text(car.id, carPixelCoords.x + 2, carPixelCoords.y + 2);
-      }
-
-      function drawCells() {
-        fill(255, 255, 255);
-
-        ways.forEach((way) => {
-          way.nodes.forEach((node) => {
-            const nodePixelCoords = myMap.latLngToPixel(node.lat, node.lon);
-            rect(nodePixelCoords.x, nodePixelCoords.y, 4, 4);
-          });
-        });
-      }
     </script>
   </body>
 </html>

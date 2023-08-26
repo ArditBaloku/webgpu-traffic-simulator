@@ -76,8 +76,10 @@ function buildGpuNodesArray() {
 }
 
 function buildGpuCarsArray() {
-  const gpuCarsFloatArray = new Float32Array(cars.flatMap((x) => [x.lat, x.lon]));
-  const gpuCarsUintArray = new Uint32Array(cars.flatMap((x) => [x.id, x.wayId, x.nodeId, x.speed]));
+  const gpuCarsFloatArray = new Float32Array(gpuCars.flatMap((x) => [x.lat, x.lon]));
+  const gpuCarsUintArray = new Uint32Array(
+    gpuCars.flatMap((x) => [x.id, x.wayId, x.nodeId, x.speed])
+  );
   return [gpuCarsFloatArray, gpuCarsUintArray];
 }
 
@@ -469,6 +471,6 @@ async function computePassGpu() {
   await gpuCarFloatReadBuffer.mapAsync(GPUMapMode.READ);
   const arrayBuffer = gpuCarUintReadBuffer.getMappedRange();
   const arrayBufferFloat = gpuCarFloatReadBuffer.getMappedRange();
-  cars = buildCpuCarsArray(new Uint32Array(arrayBuffer), new Float32Array(arrayBufferFloat));
+  gpuCars = buildCpuCarsArray(new Uint32Array(arrayBuffer), new Float32Array(arrayBufferFloat));
   // convert back to cars
 }

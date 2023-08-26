@@ -48,7 +48,7 @@ function filterRoads() {
 
   const randomNodes = ways.flatMap((x) => x.nodes).filter((x) => Math.random() < 0.2);
   let id = 1;
-  cars = randomNodes.map((y) => ({
+  cpuCars = randomNodes.map((y) => ({
     id: id++,
     lat: y.lat,
     lon: y.lon,
@@ -56,4 +56,5 @@ function filterRoads() {
     nodeId: y.id,
     speed: 2,
   }));
+  gpuCars = JSON.parse(JSON.stringify(cpuCars));
 }
