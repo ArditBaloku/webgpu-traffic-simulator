@@ -57,4 +57,7 @@ function filterRoads() {
     speed: 2,
   }));
   gpuCars = JSON.parse(JSON.stringify(cpuCars));
+
+  leftP5.cars = cpuCars;
+  rightP5.cars = gpuCars;
 }

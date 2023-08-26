@@ -115,7 +115,25 @@
           sketch.fill(0, 0, 0);
           sketch.text(`Step: ${step}`, 50, 40);
 
-          const areSimulationsSynced = JSON.stringify(cpuCars) === JSON.stringify(gpuCars);
+          let areSimulationsSynced = true;
+          if (cpuCars.length !== gpuCars.length) {
+            areSimulationsSynced = false;
+          } else {
+            cpuCars.sort((a, b) => a.id - b.id);
+            gpuCars.sort((a, b) => a.id - b.id);
+
+            for (let i = 0; i < cpuCars.length; i++) {
+              if (
+                cpuCars[i].id !== gpuCars[i].id ||
+                cpuCars[i].nodeId.toString() !== gpuCars[i].nodeId.toString() ||
+                cpuCars[i].wayId.toString() !== gpuCars[i].wayId.toString() ||
+                cpuCars[i].speed !== gpuCars[i].speed
+              ) {
+                areSimulationsSynced = false;
+                break;
+              }
+            }
+          }
 
           sketch.textSize(24);
           sketch.text('Sync status: ', 50, 80);
@@ -135,11 +153,11 @@
 
       let step = 0;
       const interval = setInterval(() => {
-        leftP5.cars = cpuCars;
-        rightP5.cars = gpuCars;
-
         computePassCpu();
-        computePassGpu();
+        computePassGpu().then(() => {
+          leftP5.cars = cpuCars;
+          rightP5.cars = gpuCars;
+        });
 
         step++;
       }, 1000);
