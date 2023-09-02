@@ -297,7 +297,7 @@ function createShaderModule() {
           if (enteringRoundabout) {
             var previousSectionOfRoundabout = Way(0u, 0u, 0u, 0u, 0u, 0u);
             for (var i = 0u; i < arrayLength(&ways.ways); i = i + 1u) {
-              if (ways.ways[i].isRoundabout == 1u && connectionIds[ways.ways[i].connectionsOffset] == currentWayId) {
+              if (ways.ways[i].isRoundabout == 1u && ways.ways[i].connectionsLength != 0u && connectionIds[ways.ways[i].connectionsOffset] == currentWayId) {
                 previousSectionOfRoundabout = ways.ways[i];
                 break;
               }
@@ -319,8 +319,8 @@ function createShaderModule() {
           }
         }
 
-        nextNodeId = nodeIds.nodeIds[way.nodesOffset + positionInWay + 1];
-        nextNodeCoordinate = nodeCoordinates.nodeCoordinates[way.nodesOffset + positionInWay + 1];
+        nextNodeId = nodeIds.nodeIds[currentWay.nodesOffset + positionInWay + 1];
+        nextNodeCoordinate = nodeCoordinates.nodeCoordinates[currentWay.nodesOffset + positionInWay + 1];
         var isCarOnNextNode = false;
         for (var i = 0u; i < arrayLength(&carUints.carUints); i = i + 1u) {
           if (carUints.carUints[i].nodeId == nextNodeId.id && carUints.carUints[i].wayId == currentWay.id) {
@@ -361,8 +361,8 @@ function createShaderModule() {
               break;
             }
 
-            nextNodeId = nodeIds.nodeIds[way.nodesOffset + positionInWay + 1];
-            nextNodeCoordinate = nodeCoordinates.nodeCoordinates[way.nodesOffset + positionInWay + 1];
+            nextNodeId = nodeIds.nodeIds[currentWay.nodesOffset + positionInWay + 1];
+            nextNodeCoordinate = nodeCoordinates.nodeCoordinates[currentWay.nodesOffset + positionInWay + 1];
 
             var isCarOnNextNode = false;
             for (var i = 0u; i < arrayLength(&carUints.carUints); i = i + 1u) {
