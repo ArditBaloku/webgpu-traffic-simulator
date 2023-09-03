@@ -218,6 +218,7 @@ function createShaderModule() {
 
           previousWay = currentWay;
           var currentWayId = connectionIds[currentWay.connectionsOffset];
+          positionInWay = 0;
 
           var foundCurrentWay = false;
           for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
@@ -278,24 +279,19 @@ function createShaderModule() {
 
         if (distanceToCheck == max(car.speed, 1) - 1u && car.speed < 2 && car.speed > 0) {
           if (positionInWay + 1 > currentWay.nodesLength - 1) {
-            var currentWayId = connectionIds[currentWay.connectionsOffset];
             positionInWay = 0;
             
             if (currentWay.connectionsLength == 0u) {
               break;
             }
 
-            var foundCurrentWay = false;
+            var currentWayId = connectionIds[currentWay.connectionsOffset];
+
             for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
               if (ways[i].id == currentWayId) {
                 currentWay = ways[i];
-                foundCurrentWay = true;
                 break;
               }
-            }
-
-            if (!foundCurrentWay) {
-              break;
             }
 
             nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
