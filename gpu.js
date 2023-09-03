@@ -157,18 +157,10 @@ function createShaderModule() {
       nodesLength: u32,
       isRoundabout: u32,
     }
-    
-    struct Ways {
-      ways: array<Way>,
-    }
 
     struct Node {
       id: u32,
       wayId: u32,
-    }
-
-    struct Nodes {
-      nodes: array<Node>,
     }
 
     struct Car {
@@ -177,39 +169,35 @@ function createShaderModule() {
       nodeId: u32,
       speed: u32,
     }
-
-    struct Cars {
-      cars: array<Car>,
-    }
     
-    @group(0) @binding(0) var<storage, read> ways : Ways;
+    @group(0) @binding(0) var<storage, read> ways : array<Way>;
     @group(0) @binding(1) var<storage, read> connectionIds: array<u32>;
-    @group(0) @binding(2) var<storage, read> nodes : Nodes;
-    @group(0) @binding(3) var<storage, read> cars : Cars;
-    @group(0) @binding(4) var<storage, read_write> carResults : Cars;
+    @group(0) @binding(2) var<storage, read> nodes : array<Node>;
+    @group(0) @binding(3) var<storage, read> cars : array<Car>;
+    @group(0) @binding(4) var<storage, read_write> carResults : array<Car>;
     
     @compute @workgroup_size(8)
     fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       var index = global_id.x;
-      if (index >= arrayLength(&cars.cars)) {
+      if (index >= arrayLength(&cars)) {
         return;
       }
       
-      var car = cars.cars[index];
+      var car = cars[index];
       var way : Way;
       var node : Node;
       var nodeIndex : u32;
 
-      for (var i = 0u; i < arrayLength(&ways.ways); i = i + 1u) {
-        if (ways.ways[i].id == car.wayId) {
-          way = ways.ways[i];
+      for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
+        if (ways[i].id == car.wayId) {
+          way = ways[i];
           break;
         }
       }
 
       for (var i = way.nodesOffset; i < way.nodesOffset + way.nodesLength; i = i + 1u) {
-        if (nodes.nodes[i].id == car.nodeId) {
-          node = nodes.nodes[i];
+        if (nodes[i].id == car.nodeId) {
+          node = nodes[i];
           nodeIndex = i - way.nodesOffset;
           break;
         }
@@ -224,7 +212,7 @@ function createShaderModule() {
       for (var distanceToCheck = 0u; distanceToCheck < max(car.speed, 1); distanceToCheck = distanceToCheck + 1u) {
         if (positionInWay + 1 > currentWay.nodesLength - 1) {
           if (currentWay.connectionsLength == 0u) {
-            carResults.cars[index] = Car(0u, 0u, 0u, 0u);
+            carResults[index] = Car(0u, 0u, 0u, 0u);
             return;
           }
 
@@ -232,24 +220,24 @@ function createShaderModule() {
           var currentWayId = connectionIds[currentWay.connectionsOffset];
 
           var foundCurrentWay = false;
-          for (var i = 0u; i < arrayLength(&ways.ways); i = i + 1u) {
-            if (ways.ways[i].id == currentWayId) {
-              currentWay = ways.ways[i];
+          for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
+            if (ways[i].id == currentWayId) {
+              currentWay = ways[i];
               foundCurrentWay = true;
               break;
             }
           }
 
           if (!foundCurrentWay) {
-            carResults.cars[index] = Car(0u, 0u, 0u, 0u);
+            carResults[index] = Car(0u, 0u, 0u, 0u);
             return;
           }
 
           var enteringRoundabout = currentWay.isRoundabout == 1u && previousWay.isRoundabout == 0u;
           if (enteringRoundabout) {
             var previousSectionOfRoundabout = Way(0u, 0u, 0u, 0u, 0u, 0u);
-            for (var i = 0u; i < arrayLength(&ways.ways); i = i + 1u) {
-              var checkingWay = ways.ways[i];
+            for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
+              var checkingWay = ways[i];
               if (checkingWay.isRoundabout == 1u && checkingWay.connectionsLength != 0u && connectionIds[checkingWay.connectionsOffset] == currentWay.id) {
                 previousSectionOfRoundabout = checkingWay;
                 break;
@@ -257,31 +245,31 @@ function createShaderModule() {
             }
 
             var isCarInRoundabout = false;
-            for (var i = 0u; i < arrayLength(&cars.cars); i = i + 1u) {
-              if (cars.cars[i].wayId == currentWay.id || cars.cars[i].wayId == previousSectionOfRoundabout.id) {
+            for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
+              if (cars[i].wayId == currentWay.id || cars[i].wayId == previousSectionOfRoundabout.id) {
                 isCarInRoundabout = true;
                 break;
               }
             }
 
             if (isCarInRoundabout) {
-              carResults.cars[index] = Car(car.id, previousNode.wayId, previousNode.id, 0);
+              carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0);
               return;
             }
           }
         }
 
-        nextNode = nodes.nodes[currentWay.nodesOffset + positionInWay + 1];
+        nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
         var isCarOnNextNode = false;
-        for (var i = 0u; i < arrayLength(&cars.cars); i = i + 1u) {
-          if (cars.cars[i].nodeId == nextNode.id && cars.cars[i].wayId == currentWay.id) {
+        for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
+          if (cars[i].nodeId == nextNode.id && cars[i].wayId == currentWay.id) {
             isCarOnNextNode = true;
             break;
           }
         }
 
         if (isCarOnNextNode) {
-          carResults.cars[index] = Car(car.id, previousNode.wayId, previousNode.id, distanceToCheck);
+          carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, distanceToCheck);
           return;
         }
 
@@ -298,9 +286,9 @@ function createShaderModule() {
             }
 
             var foundCurrentWay = false;
-            for (var i = 0u; i < arrayLength(&ways.ways); i = i + 1u) {
-              if (ways.ways[i].id == currentWayId) {
-                currentWay = ways.ways[i];
+            for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
+              if (ways[i].id == currentWayId) {
+                currentWay = ways[i];
                 foundCurrentWay = true;
                 break;
               }
@@ -310,11 +298,11 @@ function createShaderModule() {
               break;
             }
 
-            nextNode = nodes.nodes[currentWay.nodesOffset + positionInWay + 1];
+            nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
 
             var isCarOnNextNode = false;
-            for (var i = 0u; i < arrayLength(&cars.cars); i = i + 1u) {
-              if (cars.cars[i].nodeId == nextNode.id) {
+            for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
+              if (cars[i].nodeId == nextNode.id) {
                 isCarOnNextNode = true;
                 break;
               }
@@ -332,7 +320,7 @@ function createShaderModule() {
         speedUp = 1u;
       }
 
-      carResults.cars[index] = Car(car.id, nextNode.wayId, nextNode.id, max(car.speed, 1) + speedUp);
+      carResults[index] = Car(car.id, nextNode.wayId, nextNode.id, max(car.speed, 1) + speedUp);
       return;
     }`,
   });
