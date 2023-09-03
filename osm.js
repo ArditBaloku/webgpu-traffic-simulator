@@ -46,6 +46,26 @@ function filterRoads() {
     }
   });
 
+  // reassign way and node ids because they're too big for any typed array
+  const nodeIdMap = {};
+  let newWayId = 1;
+  let newNodeId = 1;
+  ways.forEach((way) => {
+    way.id = newWayId++;
+
+    way.nodes.forEach((node) => {
+      node.wayId = way.id;
+
+      if (nodeIdMap[node.id]) {
+        node.id = nodeIdMap[node.id];
+        return;
+      }
+
+      nodeIdMap[node.id] = newNodeId;
+      node.id = newNodeId++;
+    });
+  });
+
   const randomNodes = ways.flatMap((x) => x.nodes).filter((x) => Math.random() < 0.2);
   let id = 1;
   cpuCars = randomNodes.map((y) => ({

@@ -125,8 +125,8 @@
             for (let i = 0; i < cpuCars.length; i++) {
               if (
                 cpuCars[i].id !== gpuCars[i].id ||
-                cpuCars[i].nodeId.toString() !== gpuCars[i].nodeId.toString() ||
-                cpuCars[i].wayId.toString() !== gpuCars[i].wayId.toString() ||
+                cpuCars[i].nodeId !== gpuCars[i].nodeId ||
+                cpuCars[i].wayId !== gpuCars[i].wayId ||
                 cpuCars[i].speed !== gpuCars[i].speed
               ) {
                 areSimulationsSynced = false;
