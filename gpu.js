@@ -176,7 +176,7 @@ function createShaderModule() {
     @group(0) @binding(3) var<storage, read> cars : array<Car>;
     @group(0) @binding(4) var<storage, read_write> carResults : array<Car>;
     
-    @compute @workgroup_size(8)
+    @compute @workgroup_size(64)
     fn main(@builtin(global_invocation_id) global_id : vec3<u32>) {
       var index = global_id.x;
       if (index >= arrayLength(&cars)) {
