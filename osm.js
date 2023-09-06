@@ -5,7 +5,7 @@ const relations = [];
 let coordinates = [];
 
 pbfParser.parse({
-  filePath: 'rrugaB.osm.pbf',
+  filePath: 'prishtina-lite.osm.pbf',
   node: function (node) {
     nodes.push(node);
   },

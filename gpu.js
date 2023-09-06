@@ -169,6 +169,14 @@ function createShaderModule() {
       nodeId: u32,
       speed: u32,
     }
+
+    fn max(num1: u32, num2: u32) -> u32 {
+      if (num1 > num2) {
+        return num1;
+      }
+
+      return num2;
+    }
     
     @group(0) @binding(0) var<storage, read> ways : array<Way>;
     @group(0) @binding(1) var<storage, read> connectionIds: array<u32>;
@@ -209,8 +217,8 @@ function createShaderModule() {
       var previousNode = node;
       var nextNode = previousNode;
       var canSpeedUp = false;
-      for (var distanceToCheck = 0u; distanceToCheck < max(car.speed, 1); distanceToCheck = distanceToCheck + 1u) {
-        if (positionInWay + 1 > currentWay.nodesLength - 1) {
+      for (var distanceToCheck = 0u; distanceToCheck < max(car.speed, 1u); distanceToCheck = distanceToCheck + 1u) {
+        if (positionInWay + 1u > currentWay.nodesLength - 1u) {
           if (currentWay.connectionsLength == 0u) {
             carResults[index] = Car(0u, 0u, 0u, 0u);
             return;
@@ -247,13 +255,13 @@ function createShaderModule() {
             }
 
             if (isCarInRoundabout) {
-              carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0);
+              carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0u);
               return;
             }
           }
         }
 
-        nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
+        nextNode = nodes[currentWay.nodesOffset + positionInWay + 1u];
         var isCarOnNextNode = false;
         for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
           if (cars[i].nodeId == nextNode.id && cars[i].wayId == currentWay.id) {
@@ -270,9 +278,9 @@ function createShaderModule() {
         previousNode = nextNode;
         positionInWay = positionInWay + 1u;
 
-        if (distanceToCheck == max(car.speed, 1) - 1u && car.speed < 2 && car.speed > 0) {
-          if (positionInWay + 1 > currentWay.nodesLength - 1) {
-            positionInWay = 0;
+        if (distanceToCheck == max(car.speed, 1u) - 1u && car.speed < 2u && car.speed > 0u) {
+          if (positionInWay + 1u > currentWay.nodesLength - 1u) {
+            positionInWay = 0u;
             
             if (currentWay.connectionsLength == 0u) {
               break;
@@ -288,7 +296,7 @@ function createShaderModule() {
             }
           }
 
-          nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
+          nextNode = nodes[currentWay.nodesOffset + positionInWay + 1u];
 
           var isCarOnNextNode = false;
           for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
@@ -309,7 +317,7 @@ function createShaderModule() {
         speedUp = 1u;
       }
 
-      carResults[index] = Car(car.id, nextNode.wayId, nextNode.id, max(car.speed, 1) + speedUp);
+      carResults[index] = Car(car.id, nextNode.wayId, nextNode.id, max(car.speed, 1u) + speedUp);
       return;
     }`,
   });
@@ -323,8 +331,50 @@ async function computePassGpu() {
   initCarsBuffers();
   createShaderModule();
 
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: 'read-only-storage',
+        },
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: 'read-only-storage',
+        },
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: 'read-only-storage',
+        },
+      },
+      {
+        binding: 3,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: 'read-only-storage',
+        },
+      },
+      {
+        binding: 4,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: {
+          type: 'storage',
+        },
+      },
+    ],
+  });
+
   const computePipeline = device.createComputePipeline({
-    layout: 'auto',
+    layout: device.createPipelineLayout({
+      bindGroupLayouts: [bindGroupLayout],
+    }),
     compute: {
       module: shaderModule,
       entryPoint: 'main',
@@ -340,7 +390,7 @@ async function computePassGpu() {
     })
   );
   const bindGroup = device.createBindGroup({
-    layout: computePipeline.getBindGroupLayout(0),
+    layout: bindGroupLayout,
     entries,
   });
 
