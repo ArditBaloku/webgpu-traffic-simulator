@@ -348,7 +348,7 @@ async function computePassGpu() {
   const passEncoder = commandEncoder.beginComputePass();
   passEncoder.setPipeline(computePipeline);
   passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.dispatchWorkgroups(8);
+  passEncoder.dispatchWorkgroups(64);
   passEncoder.end();
 
   // Get a GPU buffer for reading in an unmapped state.
