@@ -220,18 +220,11 @@ function createShaderModule() {
           var currentWayId = connectionIds[currentWay.connectionsOffset];
           positionInWay = 0;
 
-          var foundCurrentWay = false;
           for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
             if (ways[i].id == currentWayId) {
               currentWay = ways[i];
-              foundCurrentWay = true;
               break;
             }
-          }
-
-          if (!foundCurrentWay) {
-            carResults[index] = Car(0u, 0u, 0u, 0u);
-            return;
           }
 
           var enteringRoundabout = currentWay.isRoundabout == 1u && previousWay.isRoundabout == 0u;
@@ -293,20 +286,20 @@ function createShaderModule() {
                 break;
               }
             }
+          }
 
-            nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
+          nextNode = nodes[currentWay.nodesOffset + positionInWay + 1];
 
-            var isCarOnNextNode = false;
-            for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
-              if (cars[i].nodeId == nextNode.id) {
-                isCarOnNextNode = true;
-                break;
-              }
+          var isCarOnNextNode = false;
+          for (var i = 0u; i < arrayLength(&cars); i = i + 1u) {
+            if (cars[i].nodeId == nextNode.id) {
+              isCarOnNextNode = true;
+              break;
             }
+          }
 
-            if (!isCarOnNextNode) {
-              canSpeedUp = true;
-            }
+          if (!isCarOnNextNode) {
+            canSpeedUp = true;
           }
         }
       }
