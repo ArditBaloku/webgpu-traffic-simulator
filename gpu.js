@@ -226,7 +226,7 @@ function createShaderModule() {
 
           previousWay = currentWay;
           var currentWayId = connectionIds[currentWay.connectionsOffset];
-          positionInWay = 0;
+          positionInWay = 0u;
 
           for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
             if (ways[i].id == currentWayId) {
