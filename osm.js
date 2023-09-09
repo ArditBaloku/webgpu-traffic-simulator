@@ -5,7 +5,7 @@ const relations = [];
 let coordinates = [];
 
 pbfParser.parse({
-  filePath: 'prishtina-lite.osm.pbf',
+  filePath: 'prishtina.osm.pbf',
   node: function (node) {
     nodes.push(node);
   },
@@ -18,7 +18,9 @@ pbfParser.parse({
   endDocument: function () {
     console.log('OSM parsed');
     filterRoads();
-    ready = true;
+    setUpGpu().then(() => {
+      ready = true;
+    });
   },
   // bounds: function (bounds) {
   //   bounds.push(bounds);

@@ -101,12 +101,7 @@ function buildCpuCarsArray(carsArray) {
 waysBuffer = null;
 connectionIdsBuffer = null;
 nodesBuffer = null;
-staticBuffersInitialized = false;
 function initStaticBuffers() {
-  if (staticBuffersInitialized) {
-    return;
-  }
-
   const [gpuWaysArray, connectionIdsArray] = buildGpuWaysArray();
   waysBuffer = createGPUBuffer(
     gpuWaysArray,
@@ -122,31 +117,26 @@ function initStaticBuffers() {
     gpuNodesArray,
     GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
   );
-
-  staticBuffersInitialized = true;
 }
 
-carsBuffer = null;
-carsResultsBuffer = null;
+carsBuffers = null;
+initialCarsSize = 0;
+initialCarsByteLength = 0;
 function initCarsBuffers() {
   const gpuCarsArray = buildGpuCarsArray();
-  carsBuffer = createGPUBuffer(
-    gpuCarsArray,
-    GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
-  );
-  carsResultsBuffer = createGPUBuffer(
-    gpuCarsArray,
-    GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
-  );
+  initialCarsSize = gpuCarsArray.length;
+  initialCarsByteLength = gpuCarsArray.byteLength;
+  carsBuffers = new Array(2);
+  for (let i = 0; i < 2; i++) {
+    carsBuffers[i] = createGPUBuffer(
+      gpuCarsArray,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.READ | GPUBufferUsage.COPY_SRC
+    );
+  }
 }
 
 shaderModule = null;
-shaderModuleCreated = false;
 function createShaderModule() {
-  if (shaderModuleCreated) {
-    return;
-  }
-
   shaderModule = device.createShaderModule({
     code: `
     struct Way {
@@ -192,6 +182,12 @@ function createShaderModule() {
       }
       
       var car = cars[index];
+
+      if (car.id == 0u) {
+        carResults[index] = Car(0u, 0u, 0u, 0u);
+        return;
+      }
+
       var way : Way;
       var node : Node;
       var nodeIndex : u32;
@@ -321,17 +317,11 @@ function createShaderModule() {
       return;
     }`,
   });
-
-  shaderModuleCreated = true;
 }
 
-async function computePassGpu() {
-  const device = await getDevice();
-  initStaticBuffers();
-  initCarsBuffers();
-  createShaderModule();
-
-  const bindGroupLayout = device.createBindGroupLayout({
+let bindGroupLayout = null;
+function createBindGroupLayout() {
+  bindGroupLayout = device.createBindGroupLayout({
     entries: [
       {
         binding: 0,
@@ -370,8 +360,11 @@ async function computePassGpu() {
       },
     ],
   });
+}
 
-  const computePipeline = device.createComputePipeline({
+let computePipeline = null;
+function createComputePipeline() {
+  computePipeline = device.createComputePipeline({
     layout: device.createPipelineLayout({
       bindGroupLayouts: [bindGroupLayout],
     }),
@@ -380,49 +373,99 @@ async function computePassGpu() {
       entryPoint: 'main',
     },
   });
+}
 
-  const entries = [waysBuffer, connectionIdsBuffer, nodesBuffer, carsBuffer, carsResultsBuffer].map(
-    (buffer, index) => ({
-      binding: index,
-      resource: {
-        buffer,
-      },
-    })
-  );
-  const bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries,
-  });
+let bindGroups = null;
+function createBindGroup() {
+  bindGroups = new Array(2);
+  for (let i = 0; i < 2; ++i) {
+    bindGroups[i] = device.createBindGroup({
+      layout: bindGroupLayout,
+      entries: [
+        {
+          binding: 0,
+          resource: {
+            buffer: waysBuffer,
+          },
+        },
+        {
+          binding: 1,
+          resource: {
+            buffer: connectionIdsBuffer,
+          },
+        },
+        {
+          binding: 2,
+          resource: {
+            buffer: nodesBuffer,
+          },
+        },
+        {
+          binding: 3,
+          resource: {
+            buffer: carsBuffers[i],
+            offset: 0,
+            size: buildGpuCarsArray().byteLength,
+          },
+        },
+        {
+          binding: 4,
+          resource: {
+            buffer: carsBuffers[(i + 1) % 2],
+            offset: 0,
+            size: buildGpuCarsArray().byteLength,
+          },
+        },
+      ],
+    });
+  }
+}
 
+async function setUpGpu() {
+  await getDevice();
+  initStaticBuffers();
+  initCarsBuffers();
+  createShaderModule();
+  createBindGroupLayout();
+  createComputePipeline();
+  createBindGroup();
+}
+
+let t = 0;
+async function computePassGpu() {
+  const device = await getDevice();
+
+  const startTime = performance.now();
   const commandEncoder = device.createCommandEncoder();
   const passEncoder = commandEncoder.beginComputePass();
   passEncoder.setPipeline(computePipeline);
-  passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.dispatchWorkgroups(64);
+  passEncoder.setBindGroup(0, bindGroups[t % 2]);
+  passEncoder.dispatchWorkgroups(Math.ceil(initialCarsSize / 64));
   passEncoder.end();
 
   // Get a GPU buffer for reading in an unmapped state.
-  const gpuCarsArray = buildGpuCarsArray();
   const gpuCarsReadBuffer = device.createBuffer({
-    size: gpuCarsArray.byteLength,
+    size: initialCarsByteLength,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
 
   // Encode commands for copying buffer to buffer.
   commandEncoder.copyBufferToBuffer(
-    carsResultsBuffer /* source buffer */,
+    carsBuffers[(t + 1) % 2] /* source buffer */,
     0 /* source offset */,
     gpuCarsReadBuffer /* destination buffer */,
     0 /* destination offset */,
-    gpuCarsArray.byteLength /* size */
+    initialCarsByteLength /* size */
   );
 
   // Submit GPU commands.
-  const gpuCommands = commandEncoder.finish();
-  device.queue.submit([gpuCommands]);
+  device.queue.submit([commandEncoder.finish()]);
 
   // Read buffer.
   await gpuCarsReadBuffer.mapAsync(GPUMapMode.READ);
+  const endTime = performance.now();
+  gpuTimes.push(endTime - startTime);
   const arrayBuffer = gpuCarsReadBuffer.getMappedRange();
   gpuCars = buildCpuCarsArray(new Uint32Array(arrayBuffer));
+  t++;
 }

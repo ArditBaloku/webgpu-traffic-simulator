@@ -1,4 +1,5 @@
 async function computePassCpu() {
+  const startTime = performance.now();
   cpuCars = cpuCars
     .map((car) => {
       const way = ways.find((x) => x.id === car.wayId);
@@ -97,4 +98,6 @@ async function computePassCpu() {
       };
     })
     .filter(Boolean);
+  const endTime = performance.now();
+  cpuTimes.push(endTime - startTime);
 }

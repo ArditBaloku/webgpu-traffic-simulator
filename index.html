@@ -20,8 +20,11 @@
     </div>
     <script>
       let ready = false;
+      let simSpeed = 1000;
       let cpuCars = [];
       let gpuCars = [];
+      let cpuTimes = [];
+      let gpuTimes = [];
       const mappa = new Mappa('Leaflet');
       const options = {
         lat: 42.65221,
@@ -37,10 +40,15 @@
           const canvas = sketch.createCanvas(700, 700);
           myMap = mappa.tileMap(options);
           myMap.overlay(canvas);
+          sketch.frameRate(1000 / simSpeed);
         };
 
         sketch.draw = () => {
           if (!ready) {
+            // draw loading text
+            sketch.textSize(32);
+            sketch.fill(0, 0, 0);
+            sketch.text('Loading...', 50, 40);
             return;
           }
 
@@ -111,10 +119,18 @@
         }
 
         function drawStatistics(sketch) {
+          drawStep(sketch);
+          drawSyncStatus(sketch);
+          drawTime(sketch);
+        }
+
+        function drawStep(sketch) {
           sketch.textSize(24);
           sketch.fill(0, 0, 0);
           sketch.text(`Step: ${step}`, 50, 40);
+        }
 
+        function drawSyncStatus(sketch) {
           let areSimulationsSynced = true;
           if (cpuCars.length !== gpuCars.length) {
             areSimulationsSynced = false;
@@ -146,6 +162,49 @@
 
           sketch.text(areSimulationsSynced ? 'Synced' : 'Not synced', 180, 80);
         }
+
+        function drawTime() {
+          sketch.textSize(24);
+          sketch.fill(0, 0, 0);
+          sketch.text('Time: ', 50, 120);
+
+          // check if this is left or right p5
+          if (sketch.canvas.id === 'defaultCanvas0') {
+            drawCpuTime();
+          } else {
+            drawGpuTime();
+          }
+        }
+
+        function drawCpuTime() {
+          if (cpuTimes.length === 0) {
+            return;
+          }
+
+          const lastCpuTime = cpuTimes[cpuTimes.length - 1];
+          const averageCpuTime = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length;
+
+          sketch.fill(0, 0, 255);
+          sketch.text(`Last CPU time: ${lastCpuTime.toFixed(2)} ms`, 120, 120);
+
+          sketch.fill(0, 0, 255);
+          sketch.text(`Average CPU time: ${averageCpuTime.toFixed(2)} ms`, 120, 160);
+        }
+
+        function drawGpuTime() {
+          if (gpuTimes.length === 0) {
+            return;
+          }
+
+          const lastGpuTime = gpuTimes[gpuTimes.length - 1];
+          const averageGpuTime = gpuTimes.reduce((a, b) => a + b, 0) / gpuTimes.length;
+
+          sketch.fill(0, 0, 255);
+          sketch.text(`Last GPU time: ${lastGpuTime.toFixed(2)} ms`, 120, 120);
+
+          sketch.fill(0, 0, 255);
+          sketch.text(`Average GPU time: ${averageGpuTime.toFixed(2)} ms`, 120, 160);
+        }
       };
 
       let leftP5 = new p5(s, 'left');
@@ -153,6 +212,10 @@
 
       let step = 0;
       const interval = setInterval(() => {
+        if (!ready) {
+          return;
+        }
+
         computePassCpu();
         computePassGpu().then(() => {
           leftP5.cars = cpuCars;
@@ -160,7 +223,7 @@
         });
 
         step++;
-      }, 1000);
+      }, simSpeed);
     </script>
   </body>
 </html>
