@@ -27,8 +27,8 @@
       let gpuTimes = [];
       const mappa = new Mappa('Leaflet');
       const options = {
-        lat: 42.65221,
-        lng: 21.17623,
+        lat: 42.65493,
+        lng: 21.16413,
         zoom: 17,
         style: 'http://{s}.tile.osm.org/{z}/{x}/{y}.png',
       };
@@ -80,12 +80,18 @@
         }
 
         function drawCells(sketch) {
-          sketch.fill(255, 255, 255);
-
           ways.forEach((way) => {
             way.nodes.forEach((node) => {
               const nodePixelCoords = myMap.latLngToPixel(node.lat, node.lon);
+              sketch.fill(255, 255, 255);
               sketch.rect(nodePixelCoords.x, nodePixelCoords.y, 4, 4);
+
+              if (node.signal) {
+                const color = node.signal === 'red' ? [255, 0, 0] : [0, 255, 0];
+
+                sketch.fill(...color);
+                sketch.ellipse(nodePixelCoords.x, nodePixelCoords.y, 10, 10);
+              }
             });
           });
         }
@@ -217,10 +223,11 @@
         }
 
         computePassCpu();
-        computePassGpu().then(() => {
-          leftP5.cars = cpuCars;
-          rightP5.cars = gpuCars;
-        });
+        leftP5.cars = cpuCars;
+        // computePassGpu().then(() => {
+        //   leftP5.cars = cpuCars;
+        //   rightP5.cars = gpuCars;
+        // });
 
         step++;
       }, simSpeed);

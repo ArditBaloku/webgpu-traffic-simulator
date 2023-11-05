@@ -7,6 +7,9 @@ let coordinates = [];
 pbfParser.parse({
   filePath: 'prishtina.osm.pbf',
   node: function (node) {
+    if (node.tags.crossing === 'traffic_signals' && node.tags.highway !== 'crossing') {
+      node.signal = 'red';
+    }
     nodes.push(node);
   },
   way: function (way) {
@@ -17,7 +20,7 @@ pbfParser.parse({
   },
   endDocument: function () {
     console.log('OSM parsed');
-    filterRoads();
+    preProcessRoads();
     setUpGpu().then(() => {
       ready = true;
     });
@@ -30,7 +33,8 @@ pbfParser.parse({
   // },
 });
 
-function filterRoads() {
+function preProcessRoads() {
+  // filter only roads that are tertiary, secondary or primary
   const allowedHighways = ['tertiary', 'secondary', 'primary'];
   ways = ways
     .filter((x) => x.tags.highway && allowedHighways.includes(x.tags.highway))
@@ -40,12 +44,34 @@ function filterRoads() {
       connections: [],
     }));
 
+  // connect ways
   ways.forEach((way) => {
     const lastNode = way.nodes[way.nodes.length - 1];
     const lastWay = ways.find((x) => x.id !== way.id && x.nodes[0].id === lastNode.id);
     if (lastWay) {
       way.connections.push(lastWay);
     }
+  });
+
+  // group up traffic lights and set their initial state
+  const trafficLightNodes = ways.flatMap((x) => x.nodes).filter((x) => x.signal);
+  const groupedTrafficLightNodes = groupTrafficLightNodes(trafficLightNodes);
+  groupedTrafficLightNodes.forEach((group) => {
+    let tickCounter = 0;
+    let tickStep = 60 / group.length;
+    group.forEach((node, index) => {
+      if (index === 0) {
+        node.signal = 'green';
+        node.ticks = 0;
+      } else {
+        node.signal = 'red';
+        node.ticks = tickCounter;
+        tickCounter += tickStep;
+      }
+
+      node.redTickLimit = tickStep * (group.length - 1);
+      node.greenTickLimit = tickStep;
+    });
   });
 
   // reassign way and node ids because they're too big for any typed array
@@ -68,6 +94,7 @@ function filterRoads() {
     });
   });
 
+  // generate cars
   const randomNodes = ways.flatMap((x) => x.nodes).filter((x) => Math.random() < 0.2);
   let id = 1;
   cpuCars = randomNodes.map((y) => ({
@@ -82,4 +109,49 @@ function filterRoads() {
 
   leftP5.cars = cpuCars;
   rightP5.cars = gpuCars;
+}
+
+// Helper function to calculate the distance between two nodes
+// Based on the Haversine formula
+function distance(node1, node2) {
+  const R = 6371e3; // metres
+  const φ1 = (node1.lat * Math.PI) / 180; // φ, λ in radians
+  const φ2 = (node2.lat * Math.PI) / 180;
+  const Δφ = ((node2.lat - node1.lat) * Math.PI) / 180;
+  const Δλ = ((node2.lon - node1.lon) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
+}
+
+function groupTrafficLightNodes(nodes) {
+  const groupedNodes = [];
+
+  // Group nodes by distance
+  nodes.forEach((node1) => {
+    let group = null;
+
+    for (let i = 0; i < groupedNodes.length; i++) {
+      const node2 = groupedNodes[i][0];
+
+      if (distance(node1, node2) < 60) {
+        // 10 metres threshold
+        group = groupedNodes[i];
+        break;
+      }
+    }
+
+    if (!group) {
+      group = [];
+      groupedNodes.push(group);
+    }
+
+    group.push(node1);
+  });
+
+  return groupedNodes;
 }

@@ -13,6 +13,17 @@ async function computePassCpu() {
       let nextNode = previousNode;
       let canSpeedUp = false;
       for (let distanceToCheck = 0; distanceToCheck < Math.max(car.speed, 1); distanceToCheck++) {
+        if (previousNode.signal === 'red') {
+          return {
+            id: car.id,
+            lat: previousNode.lat,
+            lon: previousNode.lon,
+            wayId: previousNode.wayId,
+            nodeId: previousNode.id,
+            speed: 0,
+          };
+        }
+
         if (positionInWay + 1 > currentWay.nodes.length - 1) {
           previousWay = currentWay;
           currentWay = currentWay.connections[0];
@@ -51,7 +62,7 @@ async function computePassCpu() {
           (x) => x.nodeId === nextNode.id && x.wayId === currentWay.id
         );
 
-        if (isCarOnNextNode) {
+        if (isCarOnNextNode || nextNode.signal === 'red') {
           return {
             id: car.id,
             lat: previousNode.lat,
@@ -98,6 +109,25 @@ async function computePassCpu() {
       };
     })
     .filter(Boolean);
+
+  ways.forEach((way) => {
+    way.nodes.forEach((node) => {
+      if (!node.signal) {
+        return;
+      }
+
+      if (node.signal === 'red' && node.ticks === node.redTickLimit) {
+        node.signal = 'green';
+        node.ticks = 0;
+      } else if (node.signal === 'green' && node.ticks === node.greenTickLimit) {
+        node.signal = 'red';
+        node.ticks = 0;
+      }
+
+      node.ticks++;
+    });
+  });
+
   const endTime = performance.now();
   cpuTimes.push(endTime - startTime);
 }
