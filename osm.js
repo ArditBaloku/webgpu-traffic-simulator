@@ -1,8 +1,5 @@
-const bounds = [];
 const nodes = [];
 let ways = [];
-const relations = [];
-let coordinates = [];
 
 pbfParser.parse({
   filePath: 'prishtina.osm.pbf',
@@ -25,12 +22,6 @@ pbfParser.parse({
       ready = true;
     });
   },
-  // bounds: function (bounds) {
-  //   bounds.push(bounds);
-  // },
-  // relation: function (relation) {
-  //   relations.push(relation);
-  // },
 });
 
 function preProcessRoads() {
