@@ -44,8 +44,6 @@ function preProcessRoads() {
     }
   });
 
-  console.log(ways.find((x) => x.id == '669157139'));
-
   // group up traffic lights and set their initial state
   const trafficLightNodes = ways.flatMap((x) => x.nodes).filter((x) => x.signal);
   const groupedTrafficLightNodes = groupTrafficLightNodes(trafficLightNodes);
