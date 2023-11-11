@@ -38,11 +38,13 @@ function preProcessRoads() {
   // connect ways
   ways.forEach((way) => {
     const lastNode = way.nodes[way.nodes.length - 1];
-    const lastWay = ways.find((x) => x.id !== way.id && x.nodes[0].id === lastNode.id);
-    if (lastWay) {
-      way.connections.push(lastWay);
+    const connectingWays = ways.filter((x) => x.id !== way.id && x.nodes[0].id === lastNode.id);
+    if (connectingWays.length) {
+      way.connections.push(...connectingWays);
     }
   });
+
+  console.log(ways.find((x) => x.id == '669157139'));
 
   // group up traffic lights and set their initial state
   const trafficLightNodes = ways.flatMap((x) => x.nodes).filter((x) => x.signal);
@@ -70,10 +72,12 @@ function preProcessRoads() {
   let newWayId = 1;
   let newNodeId = 1;
   ways.forEach((way) => {
+    way.oldId = way.id;
     way.id = newWayId++;
 
     way.nodes.forEach((node) => {
       node.wayId = way.id;
+      node.oldId = node.id;
 
       if (nodeIdMap[node.id]) {
         node.id = nodeIdMap[node.id];
