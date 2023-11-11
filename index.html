@@ -25,6 +25,7 @@
       let gpuCars = [];
       let cpuTimes = [];
       let gpuTimes = [];
+      let gpuNodes = [];
       const mappa = new Mappa('Leaflet');
       const options = {
         lat: 42.65493,
@@ -167,6 +168,33 @@
           }
 
           sketch.text(areSimulationsSynced ? 'Synced' : 'Not synced', 180, 80);
+
+          // gpuNodes vs cpuNodes
+          // let areNodesSynced = true;
+          // const cpuNodes = ways.flatMap((way) => way.nodes);
+          // if (gpuNodes.length !== cpuNodes.length) {
+          //   areNodesSynced = false;
+          // } else {
+          //   gpuNodes.sort((a, b) => a.id - b.id);
+          //   cpuNodes.sort((a, b) => a.id - b.id);
+
+          //   for (let i = 0; i < gpuNodes.length; i++) {
+          //     if (!gpuNodes[i].signal && !cpuNodes[i].signal) {
+          //       continue;
+          //     }
+          //     if (
+          //       gpuNodes[i].id !== cpuNodes[i].id ||
+          //       gpuNodes[i].signal !== cpuNodes[i].signal ||
+          //       gpuNodes[i].ticks !== cpuNodes[i].ticks
+          //     ) {
+          //       console.log(gpuNodes[i].id, cpuNodes[i].id);
+          //       console.log(gpuNodes[i].signal, cpuNodes[i].signal);
+          //       console.log(gpuNodes[i].ticks, cpuNodes[i].ticks);
+          //       areNodesSynced = false;
+          //       break;
+          //     }
+          //   }
+          // }
         }
 
         function drawTime() {
@@ -224,10 +252,10 @@
 
         computePassCpu();
         leftP5.cars = cpuCars;
-        // computePassGpu().then(() => {
-        //   leftP5.cars = cpuCars;
-        //   rightP5.cars = gpuCars;
-        // });
+        computePassGpu().then(() => {
+          leftP5.cars = cpuCars;
+          rightP5.cars = gpuCars;
+        });
 
         step++;
       }, simSpeed);

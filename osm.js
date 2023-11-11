@@ -58,7 +58,7 @@ function preProcessRoads() {
   const groupedTrafficLightNodes = groupTrafficLightNodes(trafficLightNodes);
   groupedTrafficLightNodes.forEach((group) => {
     let tickCounter = 0;
-    let tickStep = 60 / group.length;
+    let tickStep = Math.floor(60 / group.length);
     group.forEach((node, index) => {
       if (index === 0) {
         node.signal = 'green';
