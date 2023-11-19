@@ -10,6 +10,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div style="display: flex; justify-content: start">
@@ -21,6 +22,9 @@
     <script>
       let ready = false;
       let simSpeed = 1000;
+      let showIds = true;
+      let showCells = true;
+      let showWays = true;
       let cpuCars = [];
       let gpuCars = [];
       let cpuTimes = [];
@@ -42,6 +46,8 @@
           myMap = mappa.tileMap(options);
           myMap.overlay(canvas);
           sketch.frameRate(1000 / simSpeed);
+
+          drawControls(sketch);
         };
 
         sketch.draw = () => {
@@ -61,7 +67,70 @@
           drawStatistics(sketch);
         };
 
+        function drawControls(sketch) {
+          if (sketch.canvas.id !== 'defaultCanvas0') {
+            return;
+          }
+
+          const showIdsCheckbox = sketch.createCheckbox('Show IDs', true);
+          showIdsCheckbox.changed(() => {
+            showIds = !showIds;
+          });
+
+          const showCellsCheckbox = sketch.createCheckbox('Show cells', true);
+          showCellsCheckbox.changed(() => {
+            showCells = !showCells;
+          });
+
+          const showWaysCheckbox = sketch.createCheckbox('Show ways', true);
+          showWaysCheckbox.changed(() => {
+            showWays = !showWays;
+          });
+
+          const slider = sketch.createSlider(1, 1000, 1000 - simSpeed, 1);
+          slider.style('width', '100px');
+          slider.changed(() => {
+            simSpeed = 1000 - slider.value();
+            resetSimulation();
+            console.log(simSpeed);
+            sketch.frameRate(1000 / simSpeed);
+          });
+
+          const leftDiv = document.getElementById('left');
+          showIdsCheckbox.elt.id = 'left-ids';
+          showCellsCheckbox.elt.id = 'left-cells';
+          showWaysCheckbox.elt.id = 'left-ways';
+          slider.elt.id = 'left-slider';
+
+          const leftIdsDiv = document.getElementById('left-ids');
+          const leftCellsDiv = document.getElementById('left-cells');
+          const leftWaysDiv = document.getElementById('left-ways');
+          const leftSliderDiv = document.getElementById('left-slider');
+
+          const sliderLabel = document.createElement('label');
+          sliderLabel.textContent = 'Simulation Speed:';
+          sliderLabel.id = 'slider-label';
+
+          const sliderWrapper = document.createElement('div');
+          sliderWrapper.id = 'slider-wrapper';
+          sliderWrapper.appendChild(sliderLabel);
+          sliderWrapper.appendChild(leftSliderDiv);
+
+          const leftDivWrapper = document.createElement('div');
+          leftDivWrapper.id = 'left-div-wrapper';
+
+          leftDivWrapper.appendChild(leftIdsDiv);
+          leftDivWrapper.appendChild(leftCellsDiv);
+          leftDivWrapper.appendChild(leftWaysDiv);
+          leftDivWrapper.appendChild(sliderWrapper);
+
+          leftDiv.insertBefore(leftDivWrapper, leftDiv.lastElementChild.nextSibling);
+        }
+
         function drawWays(sketch) {
+          if (!showWays) {
+            return;
+          }
           ways.forEach((way) => {
             for (let i = 0; i < way.nodes.length - 1; i++) {
               const node1 = way.nodes[i];
@@ -81,6 +150,9 @@
         }
 
         function drawCells(sketch) {
+          if (!showCells) {
+            return;
+          }
           ways.forEach((way) => {
             way.nodes.forEach((node) => {
               const nodePixelCoords = myMap.latLngToPixel(node.lat, node.lon);
@@ -120,9 +192,11 @@
           const carPixelCoords = myMap.latLngToPixel(car.lat, car.lon);
           sketch.rect(carPixelCoords.x, carPixelCoords.y, 12, 8);
 
-          sketch.fill(255, 0, 0);
-          sketch.textSize(12);
-          sketch.text(car.id, carPixelCoords.x + 2, carPixelCoords.y + 2);
+          if (showIds) {
+            sketch.fill(255, 0, 0);
+            sketch.textSize(12);
+            sketch.text(car.id, carPixelCoords.x + 2, carPixelCoords.y + 2);
+          }
         }
 
         function drawStatistics(sketch) {
@@ -245,20 +319,31 @@
       let rightP5 = new p5(s, 'right');
 
       let step = 0;
-      const interval = setInterval(() => {
-        if (!ready) {
-          return;
-        }
+      let interval;
 
-        computePassCpu();
-        leftP5.cars = cpuCars;
-        computePassGpu().then(() => {
+      function startSimulation() {
+        interval = setInterval(() => {
+          if (!ready) {
+            return;
+          }
+
+          computePassCpu();
           leftP5.cars = cpuCars;
-          rightP5.cars = gpuCars;
-        });
+          computePassGpu().then(() => {
+            leftP5.cars = cpuCars;
+            rightP5.cars = gpuCars;
+          });
 
-        step++;
-      }, simSpeed);
+          step++;
+        }, simSpeed);
+      }
+
+      function resetSimulation() {
+        clearInterval(interval);
+        startSimulation();
+      }
+
+      startSimulation();
     </script>
   </body>
 </html>
