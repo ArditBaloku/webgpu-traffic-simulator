@@ -35,6 +35,59 @@ function preProcessRoads() {
       connections: [],
     }));
 
+  // calculate length of each way
+  ways.forEach((way) => {
+    let length = 0;
+
+    for (let i = 0; i < way.nodes.length - 1; i++) {
+      const currentNode = way.nodes[i];
+      const nextNode = way.nodes[i + 1];
+
+      length += distance(currentNode, nextNode);
+    }
+
+    way.length = length;
+  });
+
+  // Calculate nodes per meter for each way
+  ways.forEach((way) => {
+    const nodesPerMeter = way.nodes.length / way.length;
+    way.nodesPerMeter = nodesPerMeter;
+  });
+
+  // nodes per meter should be a minimum of 0.2
+  // if a node has a higher value, skip it
+  // otherwise, start adding new nodes until the value is 0.2 or higher
+  // start by adding a node between the first two nodes
+  // then, add a node between the second and third nodes
+  // and so on
+  // only add one inbetween node per iteration
+  ways.forEach((way) => {
+    while (way.nodesPerMeter < 0.2) {
+      for (let i = 0; i < way.nodes.length - 1; i += 2) {
+        const currentNode = way.nodes[i];
+        const nextNode = way.nodes[i + 1];
+
+        const newNode = {
+          id: Math.floor(Math.random() * 100000000).toString(),
+          lat: currentNode.lat + (nextNode.lat - currentNode.lat) / 2,
+          lon: currentNode.lon + (nextNode.lon - currentNode.lon) / 2,
+          wayId: way.id,
+          synthetic: true,
+        };
+
+        way.nodes.splice(i + 1, 0, newNode);
+
+        // recalculate nodes per meter
+        way.nodesPerMeter = way.nodes.length / way.length;
+
+        if (way.nodesPerMeter >= 0.2) {
+          break;
+        }
+      }
+    }
+  });
+
   // connect ways
   ways.forEach((way) => {
     const lastNode = way.nodes[way.nodes.length - 1];
