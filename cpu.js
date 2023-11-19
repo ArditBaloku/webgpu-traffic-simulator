@@ -26,7 +26,7 @@ async function computePassCpu() {
 
         if (positionInWay + 1 > currentWay.nodes.length - 1) {
           previousWay = currentWay;
-          currentWay = currentWay.connections[0];
+          currentWay = currentWay.connections[(car.id + step - 1) % currentWay.connections.length];
           positionInWay = 0;
 
           if (!currentWay) {
@@ -81,7 +81,8 @@ async function computePassCpu() {
         // Also ignoring cars with a speed of 0 because they are going to speed up anyway
         if (distanceToCheck === Math.max(car.speed, 1) - 1 && car.speed < 2 && car.speed > 0) {
           if (positionInWay + 1 > currentWay.nodes.length - 1) {
-            currentWay = currentWay.connections[0];
+            currentWay =
+              currentWay.connections[(car.id + step - 1) % currentWay.connections.length];
             positionInWay = 0;
 
             if (!currentWay) {

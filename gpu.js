@@ -118,12 +118,12 @@ function buildCpuNodesArray(nodesArray) {
 }
 
 function buildGpuCarsArray() {
-  return new Uint32Array(gpuCars.flatMap((x) => [x.id, x.wayId, x.nodeId, x.speed]));
+  return new Uint32Array(gpuCars.flatMap((x) => [x.id, x.wayId, x.nodeId, x.speed, step]));
 }
 
 function buildCpuCarsArray(carsArray) {
   const cars = [];
-  for (let i = 0; i < carsArray.length; i += 4) {
+  for (let i = 0; i < carsArray.length; i += 5) {
     if (carsArray[i] === 0) {
       continue;
     }
@@ -210,6 +210,7 @@ function createShaderModule() {
       wayId: u32,
       nodeId: u32,
       speed: u32,
+      step: u32,
     }
 
     fn max(num1: u32, num2: u32) -> u32 {
@@ -242,7 +243,7 @@ function createShaderModule() {
       var car = cars[index];
 
       if (car.id == 0u) {
-        carResults[index] = Car(0u, 0u, 0u, 0u);
+        carResults[index] = Car(0u, 0u, 0u, 0u, car.step + 1);
         return;
       }
 
@@ -273,18 +274,18 @@ function createShaderModule() {
       var canSpeedUp = false;
       for (var distanceToCheck = 0u; distanceToCheck < max(car.speed, 1u); distanceToCheck = distanceToCheck + 1u) {
         if (previousNode.signal == 1u) {
-          carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0u);
+          carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0u, car.step + 1);
           return;
         }
 
         if (positionInWay + 1u > currentWay.nodesLength - 1u) {
           if (currentWay.connectionsLength == 0u) {
-            carResults[index] = Car(0u, 0u, 0u, 0u);
+            carResults[index] = Car(0u, 0u, 0u, 0u, car.step + 1);
             return;
           }
 
           previousWay = currentWay;
-          var currentWayId = connectionIds[currentWay.connectionsOffset];
+          var currentWayId = connectionIds[currentWay.connectionsOffset + ((car.id + car.step - 1) % currentWay.connectionsLength)];
           positionInWay = 0u;
 
           for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
@@ -314,7 +315,7 @@ function createShaderModule() {
             }
 
             if (isCarInRoundabout) {
-              carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0u);
+              carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, 0u, car.step + 1);
               return;
             }
           }
@@ -330,7 +331,7 @@ function createShaderModule() {
         }
 
         if (isCarOnNextNode || nextNode.signal == 1u) {
-          carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, distanceToCheck);
+          carResults[index] = Car(car.id, previousNode.wayId, previousNode.id, distanceToCheck, car.step + 1);
           return;
         }
 
@@ -345,7 +346,7 @@ function createShaderModule() {
               break;
             }
 
-            var currentWayId = connectionIds[currentWay.connectionsOffset];
+            var currentWayId = connectionIds[currentWay.connectionsOffset + ((car.id + car.step - 1) % currentWay.connectionsLength)];
 
             for (var i = 0u; i < arrayLength(&ways); i = i + 1u) {
               if (ways[i].id == currentWayId) {
@@ -376,7 +377,7 @@ function createShaderModule() {
         speedUp = 1u;
       }
 
-      carResults[index] = Car(car.id, nextNode.wayId, nextNode.id, max(car.speed, 1u) + speedUp);
+      carResults[index] = Car(car.id, nextNode.wayId, nextNode.id, max(car.speed, 1u) + speedUp, car.step + 1);
       return;
     }
 
