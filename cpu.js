@@ -41,7 +41,7 @@ async function computePassCpu() {
 
             // check if any car is inside currentWay
             const isCarInRoundabout = cpuCars.find(
-              (x) => x.wayId === currentWay.id || x.wayId === previousSectionOfRoundabout.id
+              (x) => x.wayId === currentWay.id || x.wayId === previousSectionOfRoundabout?.id
             );
 
             if (isCarInRoundabout) {
